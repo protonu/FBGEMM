@@ -85,7 +85,12 @@ void QuantizeAvx2(
 
   for (; i < len; ++i) {
     float transformed = qparams.zero_point + src[i] * inverse_scale;
-    float clipped = std::min(std::max(transformed, min_val), max_val);
+    // We make sure the first arg to max/min is not NAN/-NAN
+    // This is because when it comes to NANs, min/max is not commutative
+    // Eg. max(-NAN, d=4.0f) != max(d=4.0f, -NAN)
+    // fixing the issue illustrated by the undefined behavior here:
+    // https://godbolt.org/z/dEuTgj
+    float clipped = std::min(max_val, std::max(min_val, transformed));
     // Not exactly the same behavior as the vectorized code.
     // The vectorized code above always rounds to even in halfway cases
     // (https://software.intel.com/en-us/node/523819), but std::nearbyint
